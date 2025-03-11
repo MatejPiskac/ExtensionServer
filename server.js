@@ -43,29 +43,17 @@ app.get("/devices", (req, res) => {
 // Create a session
 app.post("/create_session", (req, res) => {
     let availableDevices = Object.values(devices).filter(d => !d.inSession);
-
     if (availableDevices.length >= 2) {
         let [device1, device2] = availableDevices.slice(0, 2);
-
-        let session = {
-            device1: device1.id,
-            device2: device2.id,
-            name1: device1.name,
-            name2: device2.name
-        };
-
-        sessions.push(session);
+        sessions.push({ device1: device1.id, device2: device2.id });
         devices[device1.id].inSession = true;
         devices[device2.id].inSession = true;
-
-        res.json({ 
-            status: "session_created", 
-            session
-        });
+        res.json({ status: "session_created", session: { name1: device1.id, name2: device2.id } });
     } else {
         res.json({ status: "no_available_devices" });
     }
 });
+
 
 // Check session for a device
 app.post("/check_session", (req, res) => {
