@@ -22,9 +22,15 @@ function generateDeviceName() {
 app.post("/register", (req, res) => {
     const { deviceId } = req.body;
 
+    if (!deviceId) {
+        return res.status(400).json({ status: "error", message: "Missing deviceId" });
+    }
+
     if (!devices[deviceId]) {
         devices[deviceId] = { id: deviceId, name: generateDeviceName(), inSession: false };
     }
+
+    console.log(`Device registered: ${devices[deviceId].name}`);
 
     res.json({ status: "registered", device: devices[deviceId] });
 });
