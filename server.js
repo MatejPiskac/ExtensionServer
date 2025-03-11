@@ -67,5 +67,20 @@ app.post("/check_session", (req, res) => {
     }
 });
 
+app.post("/leave_session", (req, res) => {
+    let session = sessions.find(s => s.device1 === req.body.deviceId || s.device2 === req.body.deviceId);
+    if (session) {
+        // Remove the session and mark the devices as not in session
+        devices[session.device1].inSession = false;
+        devices[session.device2].inSession = false;
+        sessions = sessions.filter(s => s !== session);
+
+        res.json({ status: "session_ended" });
+    } else {
+        res.json({ status: "no_session" });
+    }
+});
+
+
 // Start the server
 app.listen(3000, () => console.log("Server running on port 3000"));
