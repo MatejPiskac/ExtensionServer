@@ -11,18 +11,28 @@ let sessions = []; // Store active sessions
 // Register a device
 app.post("/register", (req, res) => {
     const { deviceId } = req.body;
+
+    // Prevent registering a device with the same ID
+    if (devices[deviceId]) {
+        return res.json({ status: "error", message: "Device already registered" });
+    }
+
     devices[deviceId] = { id: deviceId, inSession: false };
-    res.json({ status: "registered" });
+    res.json({ status: "registered", deviceId });
 });
 
 // Get available devices
 app.get("/devices", (req, res) => {
-    res.json({ devices: Object.values(devices) });
+    // Filter devices that are not in a session
+    const availableDevices = Object.values(devices).filter(d => !d.inSession);
+    res.json({ devices: availableDevices });
 });
 
 // Create a session
 app.post("/create_session", (req, res) => {
     let availableDevices = Object.values(devices).filter(d => !d.inSession);
+
+    // If there are at least 2 available devices, create a session
     if (availableDevices.length >= 2) {
         let [device1, device2] = availableDevices.slice(0, 2);
         sessions.push({ device1: device1.id, device2: device2.id });
@@ -30,7 +40,7 @@ app.post("/create_session", (req, res) => {
         devices[device2.id].inSession = true;
         res.json({ status: "session_created", session: { device1: device1.id, device2: device2.id } });
     } else {
-        res.json({ status: "no_available_devices" });
+        res.json({ status: "no_available_devices", message: "Not enough devices to create a session." });
     }
 });
 
