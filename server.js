@@ -8,39 +8,68 @@ app.use(cors());
 let devices = {}; // Store registered devices
 let sessions = []; // Store active sessions
 
+// Randomly generate readable names
+const adjectives = ["Happy", "Fast", "Blue", "Red", "Cool", "Smart", "Lucky"];
+const animals = ["Tiger", "Fox", "Eagle", "Lion", "Panda", "Hawk", "Dolphin"];
+
+function generateDeviceName() {
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const animal = animals[Math.floor(Math.random() * animals.length)];
+    return `${adj}${animal}`;
+}
+
 // Register a device
 app.post("/register", (req, res) => {
     const { deviceId } = req.body;
 
-    // Prevent registering a device with the same ID
-    if (devices[deviceId]) {
-        return res.json({ status: "error", message: "Device already registered" });
+    if (!devices[deviceId]) {
+        devices[deviceId] = { id: deviceId, name: generateDeviceName(), inSession: false };
     }
 
-    devices[deviceId] = { id: deviceId, inSession: false };
-    res.json({ status: "registered", deviceId });
+    res.json({ status: "registered", device: devices[deviceId] });
 });
 
 // Get available devices
 app.get("/devices", (req, res) => {
-    // Filter devices that are not in a session
-    const availableDevices = Object.values(devices).filter(d => !d.inSession);
-    res.json({ devices: availableDevices });
+    res.json({ devices: Object.values(devices) });
 });
 
 // Create a session
 app.post("/create_session", (req, res) => {
     let availableDevices = Object.values(devices).filter(d => !d.inSession);
 
-    // If there are at least 2 available devices, create a session
     if (availableDevices.length >= 2) {
         let [device1, device2] = availableDevices.slice(0, 2);
-        sessions.push({ device1: device1.id, device2: device2.id });
+
+        let session = {
+            device1: device1.id,
+            device2: device2.id,
+            name1: device1.name,
+            name2: device2.name
+        };
+
+        sessions.push(session);
         devices[device1.id].inSession = true;
         devices[device2.id].inSession = true;
-        res.json({ status: "session_created", session: { device1: device1.id, device2: device2.id } });
+
+        res.json({ 
+            status: "session_created", 
+            session
+        });
     } else {
-        res.json({ status: "no_available_devices", message: "Not enough devices to create a session." });
+        res.json({ status: "no_available_devices" });
+    }
+});
+
+// Check session for a device
+app.post("/check_session", (req, res) => {
+    const { deviceId } = req.body;
+    let session = sessions.find(s => s.device1 === deviceId || s.device2 === deviceId);
+
+    if (session) {
+        res.json({ status: "in_session", session });
+    } else {
+        res.json({ status: "no_session" });
     }
 });
 
