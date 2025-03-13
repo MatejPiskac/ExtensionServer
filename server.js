@@ -8,24 +8,22 @@ app.use(cors());
 let devices = {}; // Store registered devices
 let sessions = []; // Store active sessions
 
-// Randomly generate readable names
+// Randomly generate readable names with uniqueness check
 const adjectives = ["Happy", "Fast", "Blue", "Red", "Cool", "Smart", "Lucky"];
 const animals = ["Tiger", "Fox", "Eagle", "Lion", "Panda", "Hawk", "Dolphin"];
 
 function generateDeviceName() {
-    let baseName;
-    let nameExists;
-    let counter = 1;
+    let name;
+    let count = 1;
 
     do {
         const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
         const animal = animals[Math.floor(Math.random() * animals.length)];
-        baseName = counter === 1 ? `${adj}${animal}` : `${adj}${animal}${counter}`;
-        nameExists = Object.values(devices).some(device => device.name === baseName);
-        counter++;
-    } while (nameExists);
+        name = `${adj}${animal}${count > 1 ? count : ""}`;
+        count++;
+    } while (Object.values(devices).some(d => d.name === name)); // Ensure uniqueness
 
-    return baseName;
+    return name;
 }
 
 // Register a device
@@ -37,11 +35,11 @@ app.post("/register", (req, res) => {
     }
 
     if (!devices[deviceId]) {
-        const uniqueName = generateDeviceName();
-        devices[deviceId] = { id: deviceId, name: uniqueName, inSession: false };
+        devices[deviceId] = { id: deviceId, name: generateDeviceName(), inSession: false };
     }
 
     console.log(`Device registered: ${devices[deviceId].name}`);
+
     res.json({ status: "registered", device: devices[deviceId] });
 });
 
@@ -53,17 +51,26 @@ app.get("/devices", (req, res) => {
 // Create a session
 app.post("/create_session", (req, res) => {
     let availableDevices = Object.values(devices).filter(d => !d.inSession);
-    
+
     if (availableDevices.length >= 2) {
         let [device1, device2] = availableDevices.slice(0, 2);
-        const session = { device1: device1.id, device2: device2.id };
-        
+
+        let session = { 
+            device1: device1.id, 
+            name1: device1.name, 
+            device2: device2.id, 
+            name2: device2.name 
+        };
+
         sessions.push(session);
+
+        // Mark devices as in session
         devices[device1.id].inSession = true;
         devices[device2.id].inSession = true;
 
-        console.log(`Session created: ${device1.name} <-> ${device2.name}`);
-        res.json({ status: "session_created", session: { name1: device1.name, name2: device2.name } });
+        console.log(`Session created: ${session.name1} & ${session.name2}`);
+
+        res.json({ status: "session_created", session });
     } else {
         res.json({ status: "no_available_devices" });
     }
@@ -72,11 +79,6 @@ app.post("/create_session", (req, res) => {
 // Check session for a device
 app.post("/check_session", (req, res) => {
     const { deviceId } = req.body;
-
-    if (!deviceId || !devices[deviceId]) {
-        return res.status(400).json({ status: "error", message: "Invalid deviceId" });
-    }
-
     let session = sessions.find(s => s.device1 === deviceId || s.device2 === deviceId);
 
     if (session) {
@@ -86,31 +88,23 @@ app.post("/check_session", (req, res) => {
     }
 });
 
-// Leave a session
+// Leave session
 app.post("/leave_session", (req, res) => {
     const { deviceId } = req.body;
+    let session = sessions.find(s => s.device1 === deviceId || s.device2 === deviceId);
 
-    if (!deviceId || !devices[deviceId]) {
-        return res.status(400).json({ status: "error", message: "Invalid deviceId" });
-    }
-
-    let sessionIndex = sessions.findIndex(s => s.device1 === deviceId || s.device2 === deviceId);
-
-    if (sessionIndex !== -1) {
-        let session = sessions[sessionIndex];
-
-        // Mark devices as not in session
+    if (session) {
         devices[session.device1].inSession = false;
         devices[session.device2].inSession = false;
 
-        // Remove session from list
-        sessions.splice(sessionIndex, 1);
+        sessions = sessions.filter(s => s !== session);
 
-        console.log(`Session ended for: ${devices[session.device1].name} and ${devices[session.device2].name}`);
-        return res.json({ status: "session_ended" });
+        console.log(`Session ended for: ${devices[session.device1].name} & ${devices[session.device2].name}`);
+
+        res.json({ status: "session_ended" });
+    } else {
+        res.json({ status: "no_session" });
     }
-
-    res.json({ status: "no_session" });
 });
 
 // Start the server
