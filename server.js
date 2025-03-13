@@ -75,7 +75,7 @@ app.post("/leave_session", (req, res) => {
         devices[session.device2].inSession = false;
         sessions = sessions.filter(s => s !== session);
 
-        res.json({ status: "session_ended" });
+        res.json({ response: "session_ended" });
     } else {
         res.json({ status: "no_session" });
     }
